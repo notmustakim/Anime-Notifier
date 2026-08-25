@@ -79,4 +79,4 @@ jobs:
           else
             git commit -m "Update anime notifier state"
             git push
-          fi       run: python anilist_notifier.py --once
+          fi
