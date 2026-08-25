@@ -666,4 +666,638 @@ class AniListNotifier:
                                                        padding: 3px 10px;
                                                        border-radius: 6px;">
                                                 EP {ep['next_episode']}
-                                  
+                                            </td>
+
+                                            <td style="width: 8px;"></td>
+
+                                            <td style="background: {accent_soft};
+                                                       color: {accent_text};
+                                                       font-size: 12px;
+                                                       font-weight: 600;
+                                                       padding: 3px 10px;
+                                                       border-radius: 6px;">
+                                                ⏱ {time_display}
+                                            </td>
+
+                                        </tr>
+                                    </table>
+
+                                    <div style="font-size: 12px;
+                                                color: #9ca3af;
+                                                margin-top: 8px;">
+                                        You're caught up through
+                                        Episode {ep['progress']}
+                                    </div>
+
+                                    {description_html}
+
+                                    <div style="margin-top: 10px;">
+                                        {meta_row}
+                                    </div>
+
+                                    <div style="margin-top: 12px;">
+
+                                        <a href="{url}"
+                                           style="display: inline-block;
+                                                  background: {accent_dark};
+                                                  color: #ffffff;
+                                                  padding: 8px 16px;
+                                                  border-radius: 8px;
+                                                  text-decoration: none;
+                                                  font-weight: 600;
+                                                  font-size: 13px;">
+                                            {cta_label} →
+                                        </a>
+
+                                    </div>
+
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            """
+
+        anilist_user_escaped = html.escape(
+            self.anilist_user
+        )
+
+        plural = (
+            ""
+            if len(episodes) == 1
+            else "s"
+        )
+
+        # Bangladesh time
+        checked_time = datetime.now(
+            ZoneInfo("Asia/Dhaka")
+        ).strftime(
+            "%Y-%m-%d %H:%M"
+        )
+
+        return f"""
+        <!DOCTYPE html>
+        <html>
+
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport"
+                  content="width=device-width, initial-scale=1.0">
+            <meta name="color-scheme"
+                  content="light">
+        </head>
+
+        <body style="font-family: -apple-system,
+                      BlinkMacSystemFont, 'Segoe UI',
+                      Roboto, Arial, sans-serif;
+                      background: #f4f4f5;
+                      padding: 24px 16px;
+                      margin: 0;">
+
+            <table cellpadding="0"
+                   cellspacing="0"
+                   border="0"
+                   align="center"
+                   width="100%"
+                   style="max-width: 600px;
+                          margin: 0 auto;">
+
+                <tr>
+                    <td>
+
+                        <!-- Header -->
+
+                        <table cellpadding="0"
+                               cellspacing="0"
+                               border="0"
+                               width="100%"
+                               style="background: {accent};
+                                      border-radius: 14px;
+                                      padding: 26px 24px;
+                                      margin-bottom: 20px;">
+
+                            <tr>
+                                <td style="color: #ffffff;">
+
+                                    <table cellpadding="0"
+                                           cellspacing="0"
+                                           border="0"
+                                           width="100%">
+
+                                        <tr>
+
+                                            <td style="vertical-align: middle;">
+
+                                                <div style="font-size: 13px;
+                                                            opacity: 0.85;
+                                                            font-weight: 600;
+                                                            letter-spacing: 0.03em;
+                                                            text-transform: uppercase;">
+                                                    Anime Notifier ·
+                                                    {anilist_user_escaped}
+                                                </div>
+
+                                                <div style="font-size: 24px;
+                                                            font-weight: 700;
+                                                            margin-top: 4px;">
+                                                    {header_emoji}
+                                                    {header_title}
+                                                </div>
+
+                                                <div style="font-size: 14px;
+                                                            opacity: 0.9;
+                                                            margin-top: 3px;">
+                                                    {header_sub}
+                                                </div>
+
+                                            </td>
+
+                                            <td align="right"
+                                                style="vertical-align: middle;">
+
+                                                <div style="background: rgba(255,255,255,0.2);
+                                                            color: #ffffff;
+                                                            font-size: 20px;
+                                                            font-weight: 700;
+                                                            padding: 8px 16px;
+                                                            border-radius: 10px;
+                                                            text-align: center;">
+
+                                                    {len(episodes)}
+
+                                                    <div style="font-size: 10px;
+                                                                font-weight: 600;
+                                                                opacity: 0.9;
+                                                                text-transform: uppercase;">
+                                                        ep{plural}
+                                                    </div>
+
+                                                </div>
+
+                                            </td>
+
+                                        </tr>
+
+                                    </table>
+
+                                </td>
+                            </tr>
+
+                        </table>
+
+
+                        <!-- Episode Cards -->
+
+                        {episode_cards}
+
+
+                        <!-- Footer -->
+
+                        <table cellpadding="0"
+                               cellspacing="0"
+                               border="0"
+                               width="100%"
+                               style="padding: 16px 4px 4px 4px;">
+
+                            <tr>
+
+                                <td align="center"
+                                    style="font-size: 12px;
+                                           color: #9ca3af;">
+
+                                    <a href="https://anilist.co/animelist/{anilist_user_escaped}"
+                                       style="color: {accent_dark};
+                                              text-decoration: none;
+                                              font-weight: 600;">
+                                        View your full AniList
+                                    </a>
+
+                                    <span style="margin: 0 6px;">·</span>
+
+                                    Checked {checked_time} (Bangladesh)
+
+                                    <span style="margin: 0 6px;">·</span>
+
+                                    Next check in ~
+                                    {self.poll_interval_seconds // 60} min
+
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                    </td>
+                </tr>
+
+            </table>
+
+        </body>
+        </html>
+        """
+
+
+    # ---- email ------------------------------------------------------------- #
+
+    def send_email(
+        self,
+        episodes: list[dict],
+        notification_type: str = "upcoming"
+    ) -> bool:
+
+        if not episodes:
+            return False
+
+        try:
+
+            if notification_type == "release":
+                subject = (
+                    f"🎉 {len(episodes)} New Anime Episode"
+                    f"{'s' if len(episodes) > 1 else ''} Released!"
+                )
+            else:
+                subject = (
+                    f"⏰ {len(episodes)} Anime Episode"
+                    f"{'s' if len(episodes) > 1 else ''} Coming Soon"
+                )
+
+            msg = MIMEMultipart(
+                "alternative"
+            )
+
+            msg["From"] = (
+                f"{self.sender_name} "
+                f"<{self.email_sender}>"
+            )
+
+            msg["To"] = self.email_receiver
+            msg["Subject"] = subject
+
+            text_lines = [
+                f"Anime Episode Updates for {self.anilist_user}",
+                "=" * 50,
+                ""
+            ]
+
+            for ep in episodes:
+
+                status = (
+                    "Released Now!"
+                    if notification_type == "release"
+                    else f"Airing in: {ep['time_until']}"
+                )
+
+                text_lines += [
+                    f"📺 {ep['title']}",
+                    f"   Episode {ep['next_episode']}",
+                    f"   Status: {status}",
+                    f"   You've watched: Episode {ep['progress']}",
+                    f"   Watch: {ep['url']}",
+                    "─" * 40,
+                ]
+
+            text_lines += [
+                "",
+                "=" * 50,
+                f"Check your full list: "
+                f"https://anilist.co/animelist/"
+                f"{self.anilist_user}"
+            ]
+
+            text_body = "\n".join(
+                text_lines
+            )
+
+            html_body = self.create_email_html(
+                episodes,
+                notification_type
+            )
+
+            msg.attach(
+                MIMEText(
+                    text_body,
+                    "plain"
+                )
+            )
+
+            msg.attach(
+                MIMEText(
+                    html_body,
+                    "html"
+                )
+            )
+
+            with smtplib.SMTP(
+                self.smtp_server,
+                self.smtp_port,
+                timeout=30
+            ) as server:
+
+                server.starttls()
+
+                server.login(
+                    self.email_sender,
+                    self.email_password
+                )
+
+                server.send_message(msg)
+
+            self.logger.info(
+                f"Email sent successfully "
+                f"({notification_type}, "
+                f"{len(episodes)} episode(s))"
+            )
+
+            return True
+
+        except smtplib.SMTPException as e:
+
+            self.logger.error(
+                f"SMTP error sending email: {e}"
+            )
+
+            return False
+
+        except OSError as e:
+
+            self.logger.error(
+                f"Network error sending email: {e}"
+            )
+
+            return False
+
+
+    # ---- main cycle -------------------------------------------------------- #
+
+    def check_and_notify(self) -> None:
+
+        self.logger.info(
+            "Checking AniList for updates..."
+        )
+
+        watching = self.get_watching_list()
+
+        if not watching:
+
+            self.logger.warning(
+                "No currently-watching anime with "
+                "upcoming episodes found "
+                "(or the API call failed)."
+            )
+
+            return
+
+        to_notify_upcoming = []
+        to_notify_released = []
+
+        for anime in watching:
+
+            if anime.seconds_until is None:
+                continue
+
+            notify_key = (
+                f"{anime.id}_{anime.next_episode}"
+            )
+
+            if anime.seconds_until <= 0:
+
+                if (
+                    anime.next_episode
+                    and anime.next_episode > anime.progress
+                ):
+
+                    if notify_key not in self.state.get(
+                        "notified_released",
+                        []
+                    ):
+
+                        self.logger.info(
+                            f"{anime.title}: "
+                            f"Episode {anime.next_episode} "
+                            f"is OUT NOW!"
+                        )
+
+                        to_notify_released.append(
+                            self._episode_payload(
+                                anime,
+                                "Now!"
+                            )
+                        )
+
+                        self.state.setdefault(
+                            "notified_released",
+                            []
+                        ).append(
+                            notify_key
+                        )
+
+            else:
+
+                time_str = self.format_time(
+                    anime.seconds_until
+                )
+
+                hours_until = (
+                    anime.seconds_until / 3600
+                )
+
+                self.logger.info(
+                    f"{anime.title}: "
+                    f"Episode {anime.next_episode} "
+                    f"in {time_str} "
+                    f"(watched up to Ep "
+                    f"{anime.progress})"
+                )
+
+                if hours_until <= self.hours_before_notify:
+
+                    if notify_key not in self.state.get(
+                        "notified_upcoming",
+                        []
+                    ):
+
+                        to_notify_upcoming.append(
+                            self._episode_payload(
+                                anime,
+                                time_str
+                            )
+                        )
+
+                        self.state.setdefault(
+                            "notified_upcoming",
+                            []
+                        ).append(
+                            notify_key
+                        )
+
+        self._save_state()
+
+        if to_notify_released:
+
+            self.logger.info(
+                f"Sending release notification for "
+                f"{len(to_notify_released)} episode(s)..."
+            )
+
+            self.send_email(
+                to_notify_released,
+                "release"
+            )
+
+        if to_notify_upcoming:
+
+            self.logger.info(
+                f"Sending upcoming notification for "
+                f"{len(to_notify_upcoming)} episode(s)..."
+            )
+
+            self.send_email(
+                to_notify_upcoming,
+                "upcoming"
+            )
+
+        if (
+            not to_notify_released
+            and not to_notify_upcoming
+        ):
+            self.logger.info(
+                "No new episodes to notify about."
+            )
+
+
+    @staticmethod
+    def _episode_payload(
+        anime: AnimeEntry,
+        time_until: str
+    ) -> dict:
+
+        return {
+            "title": anime.title,
+            "next_episode": anime.next_episode,
+            "progress": anime.progress,
+            "time_until": time_until,
+            "url": anime.url,
+            "cover": anime.cover,
+            "description": anime.description,
+            "score": anime.score,
+            "genres": anime.genres,
+            "total_episodes": anime.total_episodes,
+        }
+
+
+    def run_once(self) -> None:
+        self.check_and_notify()
+
+
+    def run(self) -> None:
+
+        self.logger.info("=" * 60)
+        self.logger.info(
+            "Anime Episode Notifier starting"
+        )
+        self.logger.info(
+            f"User: {self.anilist_user}"
+        )
+        self.logger.info(
+            f"From: {self.sender_name} "
+            f"<{self.email_sender}>  "
+            f"To: {self.email_receiver}"
+        )
+        self.logger.info(
+            f"Notify when within "
+            f"{self.hours_before_notify}h of airing"
+        )
+        self.logger.info(
+            f"Poll interval: "
+            f"{self.poll_interval_seconds}s"
+        )
+        self.logger.info("=" * 60)
+
+        while not self._stop:
+
+            try:
+                self.check_and_notify()
+
+            except Exception:
+                self.logger.exception(
+                    "Unexpected error during check cycle"
+                )
+
+            if self._stop:
+                break
+
+            self.logger.info(
+                f"Sleeping for "
+                f"{self.poll_interval_seconds}s..."
+            )
+
+            slept = 0
+
+            while (
+                slept < self.poll_interval_seconds
+                and not self._stop
+            ):
+
+                time.sleep(
+                    min(
+                        5,
+                        self.poll_interval_seconds - slept
+                    )
+                )
+
+                slept += 5
+
+        self.logger.info("Stopped.")
+
+
+def main() -> None:
+
+    parser = argparse.ArgumentParser(
+        description="AniList episode notifier"
+    )
+
+    parser.add_argument(
+        "--config",
+        default="config.json",
+        help="Path to config.json"
+    )
+
+    parser.add_argument(
+        "--state",
+        default="anilist_state.json",
+        help="Path to state file"
+    )
+
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Run a single check and exit (good for cron)"
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        notifier = AniListNotifier(
+            args.config,
+            args.state
+        )
+
+    except ConfigError as e:
+
+        print(
+            f"Config error: {e}",
+            file=sys.stderr
+        )
+
+        sys.exit(1)
+
+    if args.once:
+        notifier.run_once()
+    else:
+        notifier.run()
+
+
+if __name__ == "__main__":
+    main()
