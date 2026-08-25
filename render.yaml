@@ -1,0 +1,10 @@
+services:
+  - type: worker
+    name: anime-notifier
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python anilist_notifier.py
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "true"
+    plan: free
