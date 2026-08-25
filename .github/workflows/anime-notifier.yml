@@ -8,6 +8,7 @@ on:
 concurrency:
   group: anime-notifier
   cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -67,7 +68,7 @@ jobs:
           ANILIST_NOTIFIER_SMTP_PASSWORD: ${{ secrets.ANILIST_NOTIFIER_SMTP_PASSWORD }}
         run: python anilist_notifier.py --once
 
-            - name: Save state
+      - name: Save state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
