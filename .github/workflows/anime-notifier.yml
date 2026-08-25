@@ -5,6 +5,7 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
 
+
 concurrency:
   group: anime-notifier
   cancel-in-progress: false
