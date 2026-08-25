@@ -5,6 +5,9 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
 
+concurrency:
+  group: anime-notifier
+  cancel-in-progress: false
 permissions:
   contents: write
 
@@ -64,7 +67,7 @@ jobs:
           ANILIST_NOTIFIER_SMTP_PASSWORD: ${{ secrets.ANILIST_NOTIFIER_SMTP_PASSWORD }}
         run: python anilist_notifier.py --once
 
-      - name: Save state
+            - name: Save state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -73,7 +76,10 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No state changes."
-          else
-            git commit -m "Update anime notifier state"
-            git push
+            exit 0
           fi
+
+          git commit -m "Update anime notifier state"
+
+          git pull --rebase origin main
+          git push origin main
