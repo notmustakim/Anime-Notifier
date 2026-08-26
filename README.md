@@ -1,194 +1,62 @@
-# 🎬 AniList Anime Notifier
+AniList Episode Notifier
 
-A lightweight Python anime episode notifier that monitors your **AniList Currently Watching** list and sends email notifications when episodes are approaching or have been released.
+A Python-based notifier that watches your AniList "Currently Watching" list and sends email notifications when new episodes are about to air or have just been released.
 
-The notifier is designed to run automatically using **GitHub Actions**, so your computer does not need to stay online.
+Features
 
----
+· 📺 Automatic Monitoring: Watches your AniList "Currently Watching" list for upcoming and recently released episodes
+· 📧 Email Notifications: Sends formatted HTML emails with anime details, including cover images, descriptions, and episode information
+· 🔄 State Persistence: Tracks which episodes have been notified to avoid duplicate alerts
+· 🛡️ Robust Error Handling: Handles network issues, rate limiting, and API errors gracefully
+· 🔐 Secure Configuration: Supports environment variables for sensitive data like SMTP passwords
+· 🚀 GitHub Actions Ready: Includes workflows for automated scheduling and state management
+· 📝 Comprehensive Logging: Console and file logging with rotation for debugging and monitoring
 
-## ✨ Features
+Prerequisites
 
-- 📺 Monitors your AniList **Currently Watching** list
-- ⏰ Notifies you about upcoming episodes
-- 🎉 Notifies you when episodes are released
-- 📧 Sends formatted HTML email notifications
-- 🖼️ Includes anime cover images
-- ⭐ Shows AniList scores
-- 🎭 Shows genres
-- 📊 Shows total episode count
-- 🔗 Includes AniList links
-- 💾 Stores notification state between runs
-- 🚫 Prevents duplicate notifications
-- 🔄 Automatically saves state back to GitHub
-- ⏱️ Runs automatically every hour
-- ▶️ Supports manual execution
-- 🔁 Includes a manual state-reset workflow
-- 🛡️ Uses HTTP retries, backoff, and timeouts
-- 📝 Provides console and rotating file logging
-- 🧹 Limits state-file growth
-- 🛑 Handles graceful shutdown
-- 💻 Can be run locally
-- 🌐 Uses the AniList GraphQL API
-- 💸 Can be hosted for free using GitHub Actions
+· Python 3.13 or higher
+· AniList account with a public username
+· Email account with SMTP access (Gmail recommended)
+· GitHub account (for automated deployment)
 
----
+Installation
 
-## 📋 How It Works
+Local Setup
 
-```text
-                    GitHub Actions
-                          │
-                    Every hour
-                          │
-                          ▼
-                 Checkout repository
-                          │
-                          ▼
-                  Setup Python 3.13
-                          │
-                          ▼
-                 Install dependencies
-                          │
-                          ▼
-              Create temporary config
-                  from GitHub Secrets
-                          │
-                          ▼
-             Run anilist_notifier.py
-                      --once
-                          │
-                          ▼
-                    Query AniList
-                          │
-                          ▼
-                 Check episode status
-                    ┌─────┴─────┐
-                    ▼           ▼
-                Upcoming     Released
-                    │           │
-                    └─────┬─────┘
-                          ▼
-                    Send email
-                          │
-                          ▼
-                 Update state file
-                          │
-                          ▼
-                  Commit + push
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/anilist-notifier.git
+cd anilist-notifier
 ```
 
-Your computer does **not** need to remain online.
+2. Install dependencies:
 
----
-
-# 🚀 Setup
-
-## 1. Fork the Repository
-
-Click **Fork** at the top of this repository.
-
-Each user should use their own copy because the notifier uses a personal AniList account, email configuration, and notification state.
-
----
-
-## 2. Add GitHub Secrets
-
-Go to:
-
-**Repository → Settings → Secrets and variables → Actions → Secrets**
-
-Add the following repository secrets:
-
-| Secret | Description |
-|---|---|
-| `ANILIST_NOTIFIER_EMAIL` | Email address used to send notifications |
-| `ANILIST_NOTIFIER_RECEIVER` | Email address that receives notifications |
-| `ANILIST_NOTIFIER_ANILIST_USERNAME` | Your AniList username |
-| `ANILIST_NOTIFIER_SMTP_PASSWORD` | Gmail SMTP/App Password |
-
-### Example
-
-```text
-ANILIST_NOTIFIER_EMAIL
-your-email@gmail.com
-
-ANILIST_NOTIFIER_RECEIVER
-receiver@example.com
-
-ANILIST_NOTIFIER_ANILIST_USERNAME
-your_anilist_username
-
-ANILIST_NOTIFIER_SMTP_PASSWORD
-your_gmail_app_password
+```bash
+pip install -r requirements.txt
 ```
 
-> **An AniList API token is not required by the current implementation.**
+3. Create a configuration file:
 
-> Never commit your email password, App Password, or other credentials to the repository.
-
----
-
-# 📺 AniList Setup
-
-The notifier uses your AniList username to access your **Currently Watching** list.
-
-Set:
-
-```text
-ANILIST_NOTIFIER_ANILIST_USERNAME
+```bash
+cp config.example.json config.json
 ```
 
-to your AniList username.
-
-For example:
-
-```text
-mustakim
-```
-
-The current implementation does **not require an AniList API token**.
-
----
-
-# 📧 Gmail Setup
-
-The notifier currently uses Gmail SMTP.
-
-```text
-SMTP Server: smtp.gmail.com
-SMTP Port:   587
-Security:    STARTTLS
-```
-
-For Gmail, use a **Google App Password** rather than your normal Google account password.
-
-Store the App Password as:
-
-```text
-ANILIST_NOTIFIER_SMTP_PASSWORD
-```
-
----
-
-# ⚙️ Configuration
-
-The GitHub Actions workflow creates `config.json` automatically during each run.
-
-Credentials are supplied through GitHub Secrets rather than being permanently stored in the repository.
-
-The generated configuration contains settings similar to:
+4. Edit config.json with your settings:
 
 ```json
 {
     "email": {
         "sender": "your-email@gmail.com",
-        "receiver": "receiver@example.com",
+        "receiver": "receiver-email@gmail.com",
         "sender_name": "Anime Notifier",
         "smtp_server": "smtp.gmail.com",
-        "smtp_port": 587
+        "smtp_port": 587,
+        "password": "your-app-password"
     },
     "anilist": {
-        "username": "your_anilist_username"
+        "username": "your-anilist-username",
+        "token": "your-anilist-token"
     },
     "check_interval": 3600,
     "notify_before_release": true,
@@ -197,100 +65,129 @@ The generated configuration contains settings similar to:
 }
 ```
 
----
-
-# ⏰ Automatic Schedule
-
-The GitHub Actions workflow uses:
-
-```yaml
-on:
-  schedule:
-    - cron: "17 * * * *"
-```
-
-This runs the notifier approximately **once every hour at 17 minutes past the hour**.
-
-For example:
-
-```text
-01:17
-02:17
-03:17
-04:17
-05:17
-...
-```
-
-GitHub Actions scheduling can experience delays, so it should not be considered an exact-to-the-second scheduler.
-
----
-
-# ▶️ Manual Run
-
-You can manually run the notifier without waiting for the next scheduled execution.
-
-1. Open your GitHub repository.
-2. Go to **Actions**.
-3. Select **Anime Notifier**.
-4. Click **Run workflow**.
-5. Select the `main` branch.
-6. Click **Run workflow**.
-
-The workflow performs a single check.
-
----
-
-# 💾 Notification State
-
-The notifier uses:
-
-```text
-anilist_state.json
-```
-
-to remember which notifications have already been sent.
-
-This prevents the same episode from generating duplicate emails during subsequent hourly checks.
-
-After a successful run, the workflow checks whether the state has changed.
-
-If it has changed, GitHub Actions commits and pushes the updated state.
-
----
-
-# 🔄 Reset Notification State
-
-The project includes a separate workflow for resetting notification history.
-
-To reset:
-
-1. Open **GitHub → Actions**.
-2. Select **Reset Anime State**.
-3. Click **Run workflow**.
-4. Select `main`.
-5. Click **Run workflow**.
-
-The reset workflow runs:
+5. Set environment variable for SMTP password (recommended for security):
 
 ```bash
-python reset_state.py
+export ANILIST_NOTIFIER_SMTP_PASSWORD="your-app-password"
 ```
 
-After the reset, the notifier starts with a fresh notification state.
+Running Locally
 
----
+```bash
+# Single check
+python anilist_notifier.py --once
 
-# 🗂️ Project Structure
+# Continuous monitoring
+python anilist_notifier.py
+```
 
-```text
-Anime-Notifier/
-│
+GitHub Actions Deployment
+
+Setting Up
+
+1. Fork this repository to your GitHub account.
+2. Add the following secrets to your repository (Settings → Secrets and Variables → Actions):
+   · ANILIST_NOTIFIER_EMAIL: Your email address (sender)
+   · ANILIST_NOTIFIER_RECEIVER: The email address to receive notifications
+   · ANILIST_NOTIFIER_ANILIST_USERNAME: Your AniList username
+   · ANILIST_NOTIFIER_ANILIST_TOKEN: Your AniList API token (optional)
+   · ANILIST_NOTIFIER_SMTP_PASSWORD: Your email app password
+3. The workflow will automatically:
+   · Run every hour (at the 17th minute)
+   · Check for new episodes
+   · Send email notifications if needed
+   · Save the state back to the repository
+
+Manual Workflow Triggers
+
+You can manually trigger the workflow from GitHub Actions:
+
+1. Go to Actions tab in your repository
+2. Select "Anime Notifier" workflow
+3. Click "Run workflow"
+
+How It Works
+
+1. Monitoring: The script queries the AniList GraphQL API for your "Currently Watching" list.
+2. Episode Detection: For each anime, it checks:
+   · If the next episode is airing soon (within hours_before_notify window)
+   · If a new episode has been released since the last check
+3. State Management: The script maintains a state file (anilist_state.json) that tracks:
+   · notified_upcoming: Episodes that have been notified as upcoming
+   · notified_released: Episodes that have been notified as released
+4. Email Notifications: Sends a formatted HTML email with:
+   · Anime title and episode number
+   · Cover image
+   · Description (HTML-safe)
+   · Genres and score
+   · Direct link to the anime on AniList
+5. State Persistence: After each check, the state is saved back to the repository via GitHub Actions.
+
+Configuration Options
+
+Option Description Default
+check_interval Seconds between checks in continuous mode 3600
+hours_before_notify Hours before airing to send upcoming notification 24
+notify_before_release Enable/disable upcoming episode notifications true
+notify_after_release Enable/disable released episode notifications true
+poll_interval_seconds Override for check interval 3600
+
+Email Configuration
+
+For Gmail users:
+
+1. Enable 2-factor authentication on your Google account
+2. Generate an app password:
+   · Go to Google Account → Security → 2-Step Verification → App passwords
+   · Select "Mail" and "Other" (name it "AniList Notifier")
+   · Copy the generated 16-character password
+   · Use this password in your configuration or as an environment variable
+
+For other SMTP providers:
+
+· Adjust smtp_server and smtp_port accordingly
+· Use appropriate authentication method
+
+Troubleshooting
+
+Common Issues
+
+1. "Config file not found"
+   · Ensure config.json exists in the project directory
+2. "No SMTP password found"
+   · Set ANILIST_NOTIFIER_SMTP_PASSWORD environment variable
+   · Or add password field to email section in config
+3. "AniList GraphQL error"
+   · Verify your AniList username is correct
+   · Check if your list is public
+   · Ensure you have "Currently Watching" items
+4. "Network error contacting AniList"
+   · Check your internet connection
+   · The API might be temporarily unavailable
+   · Rate limiting might be active
+
+State File Issues
+
+If the state file gets corrupted, delete anilist_state.json and run the script again. The state will be regenerated.
+
+Resetting State
+
+Use the "Reset Anime State" workflow in GitHub Actions to clear the notification state:
+
+1. Go to Actions tab
+2. Select "Reset Anime State"
+3. Click "Run workflow"
+
+Development
+
+Project Structure
+
+```
+anilist-notifier/
 ├── .github/
 │   └── workflows/
 │       ├── anime-notifier.yml
 │       └── reset-state.yml
-│
 ├── anilist_notifier.py
 ├── anilist_state.json
 ├── reset_state.py
@@ -299,324 +196,41 @@ Anime-Notifier/
 └── .gitignore
 ```
 
-### Files
+Adding Features
 
-| File | Purpose |
-|---|---|
-| `anilist_notifier.py` | Main notifier program |
-| `anilist_state.json` | Stores notification state |
-| `reset_state.py` | Resets notification state |
-| `requirements.txt` | Python dependencies |
-| `anime-notifier.yml` | Automatic/manual notifier workflow |
-| `reset-state.yml` | Manual state-reset workflow |
-| `.gitignore` | Prevents unnecessary files from being committed |
-| `README.md` | Project documentation |
+To extend the notifier:
 
----
+1. Modify the GraphQL query in anilist_notifier.py to fetch additional fields
+2. Update the AnimeEntry dataclass to include new fields
+3. Modify the email template in _build_email_content() to display new information
+4. Update the state management logic if adding new notification types
 
-# 🔐 Security
+Security Notes
 
-Credentials should be stored using **GitHub Secrets**.
+· Never commit config.json containing passwords to version control
+· Use environment variables for sensitive data in production
+· The .gitignore file excludes config.json by default
+· HTML content is escaped to prevent email injection attacks
 
-Do not commit sensitive information to the repository.
+License
 
-Especially keep the following private:
+This project is open source. Feel free to modify and use it as you wish.
 
-```text
-ANILIST_NOTIFIER_SMTP_PASSWORD
-```
+Acknowledgments
 
-Email addresses and the AniList username can also be kept in Secrets rather than exposed in the repository.
+· Built with AniList API
+· Uses Requests library for HTTP requests
+· Designed for GitHub Actions automation
 
----
+Contributing
 
-# 📝 Recommended `.gitignore`
+Contributions are welcome! Please:
 
-```gitignore
-__pycache__/
-*.pyc
-anilist_notifier.log
-config.json
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-This prevents generated files and local configuration from being committed unnecessarily.
+Support
 
----
-
-# 🧪 Run Locally
-
-The notifier can also be run directly on your computer.
-
-## Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-## Run once
-
-```bash
-python anilist_notifier.py --once
-```
-
-`--once` performs one check and then exits.
-
-## Run continuously
-
-```bash
-python anilist_notifier.py
-```
-
-Without `--once`, the program can continue running according to its configured polling interval.
-
----
-
-# 📧 Email Notifications
-
-## ⏰ Upcoming Episodes
-
-Upcoming episode emails can contain:
-
-- Anime title
-- Episode number
-- Time until airing
-- Cover image
-- Genres
-- AniList score
-- Total episode count
-- Description
-- AniList link
-
----
-
-## 🎉 Released Episodes
-
-Release notifications indicate that an episode has been released and provide an AniList link.
-
----
-
-# 🌏 Time Zone
-
-The application can display timestamps using the configured local timezone.
-
-The current setup is intended to display times in:
-
-```text
-Asia/Dhaka
-```
-
----
-
-# 🔁 GitHub Actions Concurrency
-
-The workflow uses:
-
-```yaml
-concurrency:
-  group: anime-notifier
-  cancel-in-progress: false
-```
-
-This prevents multiple notifier jobs from running simultaneously.
-
-This is important because the workflow modifies:
-
-```text
-anilist_state.json
-```
-
-and pushes the updated state back to the repository.
-
----
-
-# 🛡️ Reliability
-
-The notifier includes:
-
-- HTTP retries
-- Exponential backoff
-- Request timeouts
-- AniList GraphQL error detection
-- Invalid JSON handling
-- Configuration validation
-- SMTP password validation
-- Graceful shutdown
-- Rotating log files
-- State-file size limiting
-
-These features help the notifier handle temporary network and API problems.
-
----
-
-# 📝 Logging
-
-The notifier provides console logging and writes to:
-
-```text
-anilist_notifier.log
-```
-
-The log uses a rotating file handler so it does not grow indefinitely.
-
-The log file should normally remain excluded from Git using `.gitignore`.
-
----
-
-# 💰 Hosting
-
-The project can run completely free using **GitHub Actions**.
-
-You do not need:
-
-- ❌ VPS
-- ❌ Paid background worker
-- ❌ Dedicated server
-- ❌ Raspberry Pi
-- ❌ Always-on computer
-
-GitHub runs the notifier according to the workflow schedule.
-
----
-
-# 👥 Using the Project for Other Users
-
-The recommended way for other people to use the project is to **fork the repository**.
-
-Each user gets their own independent setup:
-
-```text
-                 Original Repository
-                         │
-              ┌──────────┼──────────┐
-              ▼          ▼          ▼
-           User A      User B      User C
-              │          │          │
-           Secrets    Secrets    Secrets
-              │          │          │
-           AniList    AniList    AniList
-              │          │          │
-           State A    State B    State C
-```
-
-Each user provides their own:
-
-- AniList username
-- Sender email
-- Receiver email
-- Gmail App Password
-
-No user needs access to another user's credentials or notification state.
-
----
-
-# 🧭 User Setup Summary
-
-```text
-1. Fork repository
-        ↓
-2. Add GitHub Secrets
-        ↓
-3. Enable GitHub Actions
-        ↓
-4. Run Anime Notifier manually
-        ↓
-5. Check email
-        ↓
-6. Done
-        ↓
-GitHub Actions runs automatically every hour
-```
-
----
-
-# 🛠️ Troubleshooting
-
-## Workflow is not appearing
-
-Make sure the workflow files are located inside:
-
-```text
-.github/workflows/
-```
-
-and use the `.yml` extension.
-
----
-
-## Workflow fails because of missing secrets
-
-Go to:
-
-**Settings → Secrets and variables → Actions**
-
-Make sure these names exactly match:
-
-```text
-ANILIST_NOTIFIER_EMAIL
-ANILIST_NOTIFIER_RECEIVER
-ANILIST_NOTIFIER_ANILIST_USERNAME
-ANILIST_NOTIFIER_SMTP_PASSWORD
-```
-
----
-
-## No email received
-
-Check:
-
-1. The GitHub Actions run completed successfully.
-2. The workflow logs for errors.
-3. Your email spam/junk folder.
-4. Your Gmail App Password.
-5. The sender and receiver secrets.
-
----
-
-## Duplicate notifications
-
-The notification history is stored in:
-
-```text
-anilist_state.json
-```
-
-If necessary, use the **Reset Anime State** workflow.
-
----
-
-## State push fails
-
-The workflow saves the state back to the repository after the notifier runs.
-
-It uses Git operations such as:
-
-```bash
-git pull --rebase --autostash origin main
-git push origin main
-```
-
-to reduce the chance of conflicts when updating the state file.
-
----
-
-# 📦 Dependencies
-
-Python dependencies are listed in:
-
-```text
-requirements.txt
-```
-
-Install them with:
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# 📜 License
-
-This project is provided for personal and educational use.
-
-Feel free to fork, modify, and adapt it for your own needs.
+For issues, bug reports, or feature requests, please use the GitHub Issues section of the repository.
