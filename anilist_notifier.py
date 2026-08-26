@@ -961,8 +961,7 @@ class AniListNotifier:
                 "",
                 "=" * 50,
                 f"Check your full list: "
-                f"https://anilist.co/animelist/"
-                f"{self.anilist_user}"
+                f"https://anilist.co/user/{self.anilist_user}/animelist"
             ]
 
             text_body = "\n".join(
