@@ -23,6 +23,8 @@ Improvements over the original version:
   - Graceful Ctrl+C / SIGTERM shutdown
   - Type hints + dataclass for anime entries for clarity
   - Configurable timezone support
+  - Prefers English titles over Romaji
+  - Simplified email (removed description, genres, rating)
 """
 
 import argparse
@@ -399,9 +401,10 @@ class AniListNotifier:
                 watching.append(
                     AnimeEntry(
                         id=media["id"],
+                        # Prefer English title over Romaji
                         title=(
-                            media["title"]["romaji"]
-                            or media["title"]["english"]
+                            media["title"]["english"]
+                            or media["title"]["romaji"]
                             or "Unknown"
                         ),
                         progress=entry.get(
@@ -495,74 +498,45 @@ class AniListNotifier:
         notification_type: str = "upcoming"
     ) -> str:
 
-        """Create a clean, properly formatted email body."""
+        """Create a clean, simplified email body without extra metadata."""
 
         if notification_type == "release":
-
             header_emoji = "🎉"
             header_title = "New Episodes Released"
             header_sub = "Ready to watch right now"
-
             accent = "#10b981"
             accent_dark = "#047857"
             accent_soft = "#ecfdf5"
             accent_text = "#047857"
-
             pill_label = "Available now"
             cta_label = "Watch now"
-
         else:
-
             header_emoji = "⏰"
             header_title = "Upcoming Episodes"
             header_sub = "Airing soon on your watch list"
-
             accent = "#f59e0b"
             accent_dark = "#b45309"
             accent_soft = "#fffbeb"
             accent_text = "#b45309"
-
             pill_label = None
             cta_label = "View on AniList"
 
         episode_cards = ""
 
         for ep in episodes:
-
-            title = html.escape(
-                str(ep["title"])
-            )
-
-            description = html.escape(
-                str(ep.get("description", ""))
-            )
-
-            url = html.escape(
-                str(ep.get("url", "")),
-                quote=True
-            )
-
-            cover_img_url = html.escape(
-                str(ep.get("cover", "")),
-                quote=True
-            )
-
-            time_display = html.escape(
-                pill_label
-                or str(ep["time_until"])
-            )
+            title = html.escape(str(ep["title"]))
+            url = html.escape(str(ep.get("url", "")), quote=True)
+            cover_img_url = html.escape(str(ep.get("cover", "")), quote=True)
+            time_display = html.escape(pill_label or str(ep["time_until"]))
 
             if cover_img_url:
-
                 cover_html = (
                     f'<img src="{cover_img_url}" alt="" width="72" '
                     f'style="width: 72px; height: 104px; '
                     f'object-fit: cover; border-radius: 8px; '
                     f'display: block; border: 1px solid #e5e7eb;">'
                 )
-
             else:
-
                 cover_html = (
                     f'<div style="width: 72px; height: 104px; '
                     f'background: {accent_soft}; border-radius: 8px; '
@@ -571,64 +545,6 @@ class AniListNotifier:
                     f'color: {accent_dark}; font-size: 26px; '
                     f'border: 1px solid #e5e7eb;">🎬</div>'
                 )
-
-            genres_html = "".join(
-                f'<span style="background: #f3f4f6; '
-                f'padding: 3px 9px; border-radius: 999px; '
-                f'font-size: 11px; margin: 0 4px 4px 0; '
-                f'color: #4b5563; display: inline-block;">'
-                f'{html.escape(g)}</span>'
-                for g in ep.get(
-                    "genres",
-                    []
-                )[:3]
-            )
-
-            score_html = ""
-
-            if (
-                ep.get("score")
-                and ep["score"] != "N/A"
-            ):
-                score_html = (
-                    f'<span style="background: #f3f4f6; '
-                    f'padding: 3px 9px; border-radius: 999px; '
-                    f'font-size: 11px; margin: 0 4px 4px 0; '
-                    f'color: #4b5563; display: inline-block;">'
-                    f'⭐ {html.escape(str(ep["score"]))}%</span>'
-                )
-
-            eps_html = ""
-
-            if (
-                ep.get("total_episodes")
-                and ep["total_episodes"] != "?"
-            ):
-                eps_html = (
-                    f'<span style="background: #f3f4f6; '
-                    f'padding: 3px 9px; border-radius: 999px; '
-                    f'font-size: 11px; margin: 0 4px 4px 0; '
-                    f'color: #4b5563; display: inline-block;">'
-                    f'📺 {html.escape(str(ep["total_episodes"]))} '
-                    f'total</span>'
-                )
-
-            meta_row = "".join(
-                [
-                    genres_html,
-                    score_html,
-                    eps_html
-                ]
-            )
-
-            description_html = (
-                f'<div style="font-size: 13px; '
-                f'color: #6b7280; margin: 8px 0 0 0; '
-                f'line-height: 1.5;">'
-                f'{description}</div>'
-                if description
-                else ""
-            )
 
             episode_cards += f"""
             <table cellpadding="0" cellspacing="0" border="0"
@@ -662,7 +578,6 @@ class AniListNotifier:
                                            cellspacing="0"
                                            border="0">
                                         <tr>
-
                                             <td style="background: {accent};
                                                        color: #ffffff;
                                                        font-size: 12px;
@@ -682,25 +597,16 @@ class AniListNotifier:
                                                        border-radius: 6px;">
                                                 ⏱ {time_display}
                                             </td>
-
                                         </tr>
                                     </table>
 
                                     <div style="font-size: 12px;
                                                 color: #9ca3af;
                                                 margin-top: 8px;">
-                                        You're caught up through
-                                        Episode {ep['progress']}
-                                    </div>
-
-                                    {description_html}
-
-                                    <div style="margin-top: 10px;">
-                                        {meta_row}
+                                        You're caught up through Episode {ep['progress']}
                                     </div>
 
                                     <div style="margin-top: 12px;">
-
                                         <a href="{url}"
                                            style="display: inline-block;
                                                   background: {accent_dark};
@@ -712,7 +618,6 @@ class AniListNotifier:
                                                   font-size: 13px;">
                                             {cta_label} →
                                         </a>
-
                                     </div>
 
                                 </td>
@@ -723,15 +628,8 @@ class AniListNotifier:
             </table>
             """
 
-        anilist_user_escaped = html.escape(
-            self.anilist_user
-        )
-
-        plural = (
-            ""
-            if len(episodes) == 1
-            else "s"
-        )
+        anilist_user_escaped = html.escape(self.anilist_user)
+        plural = "" if len(episodes) == 1 else "s"
 
         # Get timezone from config
         try:
@@ -746,13 +644,10 @@ class AniListNotifier:
         return f"""
         <!DOCTYPE html>
         <html>
-
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport"
-                  content="width=device-width, initial-scale=1.0">
-            <meta name="color-scheme"
-                  content="light">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="color-scheme" content="light">
         </head>
 
         <body style="font-family: -apple-system,
@@ -772,9 +667,7 @@ class AniListNotifier:
 
                 <tr>
                     <td>
-
                         <!-- Header -->
-
                         <table cellpadding="0"
                                cellspacing="0"
                                border="0"
@@ -783,19 +676,14 @@ class AniListNotifier:
                                       border-radius: 14px;
                                       padding: 26px 24px;
                                       margin-bottom: 20px;">
-
                             <tr>
                                 <td style="color: #ffffff;">
-
                                     <table cellpadding="0"
                                            cellspacing="0"
                                            border="0"
                                            width="100%">
-
                                         <tr>
-
                                             <td style="vertical-align: middle;">
-
                                                 <div style="font-size: 13px;
                                                             opacity: 0.85;
                                                             font-weight: 600;
@@ -817,12 +705,10 @@ class AniListNotifier:
                                                             margin-top: 3px;">
                                                     {header_sub}
                                                 </div>
-
                                             </td>
 
                                             <td align="right"
                                                 style="vertical-align: middle;">
-
                                                 <div style="background: rgba(255,255,255,0.2);
                                                             color: #ffffff;
                                                             font-size: 20px;
@@ -830,49 +716,34 @@ class AniListNotifier:
                                                             padding: 8px 16px;
                                                             border-radius: 10px;
                                                             text-align: center;">
-
                                                     {len(episodes)}
-
                                                     <div style="font-size: 10px;
                                                                 font-weight: 600;
                                                                 opacity: 0.9;
                                                                 text-transform: uppercase;">
                                                         ep{plural}
                                                     </div>
-
                                                 </div>
-
                                             </td>
-
                                         </tr>
-
                                     </table>
-
                                 </td>
                             </tr>
-
                         </table>
 
-
                         <!-- Episode Cards -->
-
                         {episode_cards}
 
-
                         <!-- Footer -->
-
                         <table cellpadding="0"
                                cellspacing="0"
                                border="0"
                                width="100%"
                                style="padding: 16px 4px 4px 4px;">
-
                             <tr>
-
                                 <td align="center"
                                     style="font-size: 12px;
                                            color: #9ca3af;">
-
                                     <a href="https://anilist.co/user/{anilist_user_escaped}/animelist"
                                        style="color: {accent_dark};
                                               text-decoration: none;
@@ -888,18 +759,12 @@ class AniListNotifier:
 
                                     Next check in ~
                                     {self.poll_interval_seconds // 60} min
-
                                 </td>
-
                             </tr>
-
                         </table>
-
                     </td>
                 </tr>
-
             </table>
-
         </body>
         </html>
         """
