@@ -25,6 +25,7 @@ Improvements over the original version:
   - Configurable timezone support
   - Prefers English titles over Romaji
   - Simplified email (removed description, genres, rating)
+  - FIXED: Now properly detects and notifies when episodes are released
 """
 
 import argparse
@@ -289,7 +290,8 @@ class AniListNotifier:
 
         return {
             "notified_upcoming": [],
-            "notified_released": []
+            "notified_released": [],
+            "last_progress": {}  # Track last known progress per anime
         }
 
     def _save_state(self) -> None:
@@ -304,6 +306,17 @@ class AniListNotifier:
                 self.state[key] = entries[
                     -self.STATE_MAX_AGE_ENTRIES:
                 ]
+
+        # Also limit last_progress to prevent unbounded growth
+        if "last_progress" in self.state:
+            if len(self.state["last_progress"]) > self.STATE_MAX_AGE_ENTRIES:
+                # Keep only the most recent entries
+                sorted_items = sorted(
+                    self.state["last_progress"].items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )[:self.STATE_MAX_AGE_ENTRIES]
+                self.state["last_progress"] = dict(sorted_items)
 
         tmp_path = self.state_file.with_suffix(".tmp")
 
@@ -922,111 +935,93 @@ class AniListNotifier:
         to_notify_upcoming = []
         to_notify_released = []
 
+        # Initialize last_progress if not exists
+        if "last_progress" not in self.state:
+            self.state["last_progress"] = {}
+
         for anime in watching:
-
-            if anime.seconds_until is None:
-                continue
-
-            notify_key = (
-                f"{anime.id}_{anime.next_episode}"
-            )
-
-            if anime.seconds_until <= 0:
-
-                if (
-                    anime.next_episode
-                    and anime.next_episode > anime.progress
-                ):
-
-                    if notify_key not in self.state.get(
-                        "notified_released",
-                        []
-                    ):
-
+            # Track anime ID as string for state
+            anime_id_str = str(anime.id)
+            
+            # Get last known progress for this anime
+            last_progress = self.state["last_progress"].get(anime_id_str, 0)
+            
+            # Check for released episodes by comparing progress
+            if anime.progress > last_progress:
+                # Multiple episodes may have been released since last check
+                for ep in range(last_progress + 1, anime.progress + 1):
+                    notify_key = f"{anime_id_str}_{ep}"
+                    
+                    # Check if we've already notified about this episode
+                    if notify_key not in self.state.get("notified_released", []):
                         self.logger.info(
-                            f"{anime.title}: "
-                            f"Episode {anime.next_episode} "
-                            f"is OUT NOW!"
+                            f"{anime.title}: Episode {ep} "
+                            f"has been RELEASED! "
+                            f"(Progress: {last_progress} -> {anime.progress})"
                         )
-
-                        to_notify_released.append(
-                            self._episode_payload(
-                                anime,
-                                "Now!"
-                            )
-                        )
-
-                        self.state.setdefault(
-                            "notified_released",
-                            []
-                        ).append(
-                            notify_key
-                        )
-
-            else:
-
-                time_str = self.format_time(
-                    anime.seconds_until
-                )
-
-                hours_until = (
-                    anime.seconds_until / 3600
-                )
-
+                        
+                        # Create payload for this specific episode
+                        payload = self._episode_payload(anime, "Now!")
+                        payload["next_episode"] = ep  # Override with actual episode number
+                        to_notify_released.append(payload)
+                        
+                        self.state.setdefault("notified_released", []).append(notify_key)
+                
+                # Update last progress
+                self.state["last_progress"][anime_id_str] = anime.progress
+            
+            # Check for upcoming episodes
+            if anime.seconds_until is not None and anime.seconds_until > 0:
+                time_str = self.format_time(anime.seconds_until)
+                hours_until = anime.seconds_until / 3600
+                
                 self.logger.info(
                     f"{anime.title}: "
                     f"Episode {anime.next_episode} "
                     f"in {time_str} "
-                    f"(watched up to Ep "
-                    f"{anime.progress})"
+                    f"(watched up to Ep {anime.progress})"
                 )
-
+                
                 if hours_until <= self.hours_before_notify:
-
-                    if notify_key not in self.state.get(
-                        "notified_upcoming",
-                        []
-                    ):
-
+                    # Only notify for upcoming episodes that we haven't already
+                    # notified about and that haven't been released yet
+                    notify_key = f"{anime_id_str}_{anime.next_episode}"
+                    
+                    # Check if this episode has already been released/notified
+                    if (notify_key not in self.state.get("notified_upcoming", []) and
+                        notify_key not in self.state.get("notified_released", [])):
+                        
                         to_notify_upcoming.append(
-                            self._episode_payload(
-                                anime,
-                                time_str
-                            )
+                            self._episode_payload(anime, time_str)
                         )
-
-                        self.state.setdefault(
-                            "notified_upcoming",
-                            []
-                        ).append(
-                            notify_key
-                        )
+                        
+                        self.state.setdefault("notified_upcoming", []).append(notify_key)
+            
+            # Handle case where anime has no upcoming episode but progress might have changed
+            elif anime.seconds_until is None:
+                # If no next airing and progress hasn't been tracked, track it now
+                if anime_id_str not in self.state["last_progress"]:
+                    self.state["last_progress"][anime_id_str] = anime.progress
+                    self.logger.info(
+                        f"{anime.title}: No upcoming episodes scheduled. "
+                        f"Tracking progress at Episode {anime.progress}"
+                    )
 
         self._save_state()
 
         if to_notify_released:
-
             self.logger.info(
                 f"Sending release notification for "
                 f"{len(to_notify_released)} episode(s)..."
             )
-
-            self.send_email(
-                to_notify_released,
-                "release"
-            )
+            self.send_email(to_notify_released, "release")
 
         if to_notify_upcoming:
-
             self.logger.info(
                 f"Sending upcoming notification for "
                 f"{len(to_notify_upcoming)} episode(s)..."
             )
-
-            self.send_email(
-                to_notify_upcoming,
-                "upcoming"
-            )
+            self.send_email(to_notify_upcoming, "upcoming")
 
         if (
             not to_notify_released
