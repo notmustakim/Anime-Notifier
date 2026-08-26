@@ -866,7 +866,7 @@ class AniListNotifier:
                                     style="font-size: 12px;
                                            color: #9ca3af;">
 
-                                    <a href="https://anilist.co/animelist/{anilist_user_escaped}"
+                                    <a href="https://anilist.co/user/{anilist_user_escaped}/animelist"
                                        style="color: {accent_dark};
                                               text-decoration: none;
                                               font-weight: 600;">
