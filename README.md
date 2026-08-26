@@ -10,7 +10,8 @@ A Python-based notifier that watches your AniList "Currently Watching" list and 
 - 🛡️ **Robust Error Handling**: Handles network issues, rate limiting, and API errors gracefully
 - 🔐 **Secure Configuration**: Supports environment variables for sensitive data like SMTP passwords
 - 🚀 **GitHub Actions Ready**: Includes workflows for automated scheduling and state management
-- 📝 **Comprehensive Logging**: Console and file logging with rotation for debugging and monitoring
+- 📝 **Comprehensive Logging**: Console output + rotating file logs for debugging and monitoring
+- 🌍 **Configurable Timezone**: Set your local timezone for accurate timestamps in emails
 
 ## Prerequisites
 
@@ -25,8 +26,8 @@ A Python-based notifier that watches your AniList "Currently Watching" list and 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/notmustakim/Anime-Notifier.git
-cd Anime-Notifier
+git clone https://github.com/yourusername/anilist-notifier.git   # replace with your own repo URL
+cd anilist-notifier
 ```
 
 2. Install dependencies:
@@ -46,8 +47,9 @@ pip install -r requirements.txt
     },
     "anilist": {
         "username": "your-anilist-username",
-        "token": "your-anilist-token"   // optional, not currently used
+        "token": "your-anilist-token"
     },
+    "timezone": "Asia/Dhaka",
     "check_interval": 3600,
     "notify_before_release": true,
     "hours_before_notify": 24,
@@ -55,13 +57,26 @@ pip install -r requirements.txt
 }
 ```
 
-> **Note**: The `password` field is **not** stored in the config file for security. Instead, set the environment variable `ANILIST_NOTIFIER_SMTP_PASSWORD` (see step 4).
+> **Important**: 
+> - Do **not** store your SMTP password in `config.json`. Instead, set the environment variable `ANILIST_NOTIFIER_SMTP_PASSWORD` (see step 4).
+> - Set your correct timezone (see the Timezone Configuration section below).
 
-4. Set the SMTP password as an environment variable (recommended):
+4. Set the SMTP password as an environment variable:
+
+**Linux/macOS:**
 ```bash
 export ANILIST_NOTIFIER_SMTP_PASSWORD="your-app-password"
 ```
-   (For Windows, use `set` instead of `export`.)
+
+**Windows (Command Prompt):**
+```cmd
+set ANILIST_NOTIFIER_SMTP_PASSWORD="your-app-password"
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:ANILIST_NOTIFIER_SMTP_PASSWORD="your-app-password"
+```
 
 ### Running Locally
 
@@ -72,6 +87,47 @@ python anilist_notifier.py --once
 # Continuous monitoring (runs indefinitely, checking every `check_interval` seconds)
 python anilist_notifier.py
 ```
+
+## Timezone Configuration
+
+The notifier uses your local timezone for timestamps in emails. Add the `timezone` field to your `config.json`:
+
+```json
+{
+    "timezone": "Asia/Dhaka"
+}
+```
+
+Common timezone values:
+
+| Region | Timezone Value |
+|--------|---------------|
+| Bangladesh | `Asia/Dhaka` |
+| USA (Eastern) | `America/New_York` |
+| USA (Pacific) | `America/Los_Angeles` |
+| UK | `Europe/London` |
+| India | `Asia/Kolkata` |
+| Japan | `Asia/Tokyo` |
+| Australia (Sydney) | `Australia/Sydney` |
+| Germany | `Europe/Berlin` |
+| Singapore | `Asia/Singapore` |
+
+If no timezone is specified, it defaults to `UTC`.
+
+## Logging
+
+The notifier writes logs to both the console and a file:
+
+- **Log file**: `anilist_notifier.log` (created in the same directory as the script)
+- **Rotation**: Each log file is capped at 1 MB; up to 3 backup files are kept (`anilist_notifier.log.1`, `.log.2`, `.log.3`)
+- **Format**: Timestamp, log level, and message (e.g., `2025-03-21 10:15:30 [INFO] Fetched watching list`)
+
+If you don't see the log file being updated, check:
+- The script has write permissions to the current directory.
+- The script is actually running (check console output).
+- The log file might be locked by another process (rare).
+
+In GitHub Actions runs, the log file is ephemeral—it exists only during the job and is not preserved unless you upload it as an artifact.
 
 ## GitHub Actions Deployment
 
@@ -117,6 +173,7 @@ You can manually trigger the workflow from GitHub Actions:
    - Description (HTML-safe)
    - Genres and score
    - Direct link to the anime on AniList
+   - Local timezone timestamp
 
 5. **State Persistence**: After each check, the state is saved back to the repository via GitHub Actions.
 
@@ -124,11 +181,12 @@ You can manually trigger the workflow from GitHub Actions:
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `timezone` | Your local timezone (e.g., `Asia/Dhaka`, `America/New_York`) | `UTC` |
 | `check_interval` | Seconds between checks in continuous mode | 3600 |
 | `hours_before_notify` | Hours before airing to send upcoming notification | 24 |
 | `notify_before_release` | Enable/disable upcoming episode notifications | true |
 | `notify_after_release` | Enable/disable released episode notifications | true |
-| `poll_interval_seconds` | Override for check interval (if you want to change it without editing config) | 3600 |
+| `poll_interval_seconds` | Override for check interval | 3600 |
 
 ## Email Configuration
 
@@ -153,13 +211,19 @@ For other SMTP providers:
 
 2. **"No SMTP password found"**
    - Set `ANILIST_NOTIFIER_SMTP_PASSWORD` environment variable
+   - Or add `password` field to `email` section in config (not recommended for security)
 
-3. **"AniList GraphQL error"**
+3. **"Timezone not found"**
+   - Check that your timezone is correct (e.g., `Asia/Dhaka`, not `Asia/Dhaka ` with a space)
+   - Install `tzdata`: `pip install tzdata`
+   - If the timezone is invalid, it will fall back to `UTC`
+
+4. **"AniList GraphQL error"**
    - Verify your AniList username is correct
    - Check if your list is public
    - Ensure you have "Currently Watching" items
 
-4. **"Network error contacting AniList"**
+5. **"Network error contacting AniList"**
    - Check your internet connection
    - The API might be temporarily unavailable
    - Rate limiting might be active
@@ -208,6 +272,12 @@ To extend the notifier:
 - Use environment variables for sensitive data in production
 - The `.gitignore` file excludes `config.json` by default
 - HTML content is escaped to prevent email injection attacks
+
+## Dependencies
+
+- `requests` – HTTP client for API calls
+- `urllib3` – HTTP client utilities
+- `tzdata` – Timezone database support (required for timezone formatting)
 
 ## License
 

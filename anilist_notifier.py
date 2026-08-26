@@ -22,6 +22,7 @@ Improvements over the original version:
     systemd timer instead of an infinite loop)
   - Graceful Ctrl+C / SIGTERM shutdown
   - Type hints + dataclass for anime entries for clarity
+  - Configurable timezone support
 """
 
 import argparse
@@ -41,7 +42,7 @@ from email.mime.text import MIMEText
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -225,6 +226,9 @@ class AniListNotifier:
         )
 
         self.anilist_user = self.config["anilist"]["username"]
+
+        # Load timezone from config (default to UTC)
+        self.timezone = self.config.get("timezone", "UTC")
 
         self.hours_before_notify = self.config.get(
             "hours_before_notify",
@@ -729,12 +733,15 @@ class AniListNotifier:
             else "s"
         )
 
-        # Bangladesh time
-        checked_time = datetime.now(
-            ZoneInfo("Asia/Dhaka")
-        ).strftime(
-            "%Y-%m-%d %H:%M"
-        )
+        # Get timezone from config
+        try:
+            tz = ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError:
+            self.logger.warning(f"Timezone '{self.timezone}' not found, falling back to UTC")
+            tz = ZoneInfo("UTC")
+
+        checked_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
+        timezone_escaped = html.escape(self.timezone)
 
         return f"""
         <!DOCTYPE html>
@@ -875,7 +882,7 @@ class AniListNotifier:
 
                                     <span style="margin: 0 6px;">·</span>
 
-                                    Checked {checked_time} (Bangladesh)
+                                    Checked {checked_time} ({timezone_escaped})
 
                                     <span style="margin: 0 6px;">·</span>
 
@@ -1210,6 +1217,9 @@ class AniListNotifier:
         self.logger.info(
             f"Poll interval: "
             f"{self.poll_interval_seconds}s"
+        )
+        self.logger.info(
+            f"Timezone: {self.timezone}"
         )
         self.logger.info("=" * 60)
 
