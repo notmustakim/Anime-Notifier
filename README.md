@@ -26,8 +26,8 @@ A Python-based notifier that watches your AniList "Currently Watching" list and 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/anilist-notifier.git   # replace with your own repo URL
-cd anilist-notifier
+git clone https://github.com/notmustakim/Anime-Notifier.git
+cd Anime-Notifier
 ```
 
 2. Install dependencies:
