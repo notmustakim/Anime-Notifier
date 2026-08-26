@@ -25,8 +25,8 @@ A Python-based notifier that watches your AniList "Currently Watching" list and 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/anilist-notifier.git
-cd anilist-notifier
+git clone https://github.com/notmustakim/Anime-Notifier.git
+cd Anime-Notifier
 ```
 
 2. Install dependencies:
@@ -34,12 +34,7 @@ cd anilist-notifier
 pip install -r requirements.txt
 ```
 
-3. Create a configuration file:
-```bash
-cp config.example.json config.json
-```
-
-4. Edit `config.json` with your settings:
+3. Create a `config.json` file in the project root with the following structure:
 ```json
 {
     "email": {
@@ -47,12 +42,11 @@ cp config.example.json config.json
         "receiver": "receiver-email@gmail.com",
         "sender_name": "Anime Notifier",
         "smtp_server": "smtp.gmail.com",
-        "smtp_port": 587,
-        "password": "your-app-password"
+        "smtp_port": 587
     },
     "anilist": {
         "username": "your-anilist-username",
-        "token": "your-anilist-token"
+        "token": "your-anilist-token"   // optional, not currently used
     },
     "check_interval": 3600,
     "notify_before_release": true,
@@ -61,18 +55,21 @@ cp config.example.json config.json
 }
 ```
 
-5. Set environment variable for SMTP password (recommended for security):
+> **Note**: The `password` field is **not** stored in the config file for security. Instead, set the environment variable `ANILIST_NOTIFIER_SMTP_PASSWORD` (see step 4).
+
+4. Set the SMTP password as an environment variable (recommended):
 ```bash
 export ANILIST_NOTIFIER_SMTP_PASSWORD="your-app-password"
 ```
+   (For Windows, use `set` instead of `export`.)
 
 ### Running Locally
 
 ```bash
-# Single check
+# Single check (useful for cron or systemd timers)
 python anilist_notifier.py --once
 
-# Continuous monitoring
+# Continuous monitoring (runs indefinitely, checking every `check_interval` seconds)
 python anilist_notifier.py
 ```
 
@@ -131,7 +128,7 @@ You can manually trigger the workflow from GitHub Actions:
 | `hours_before_notify` | Hours before airing to send upcoming notification | 24 |
 | `notify_before_release` | Enable/disable upcoming episode notifications | true |
 | `notify_after_release` | Enable/disable released episode notifications | true |
-| `poll_interval_seconds` | Override for check interval | 3600 |
+| `poll_interval_seconds` | Override for check interval (if you want to change it without editing config) | 3600 |
 
 ## Email Configuration
 
@@ -141,7 +138,7 @@ For Gmail users:
    - Go to Google Account → Security → 2-Step Verification → App passwords
    - Select "Mail" and "Other" (name it "AniList Notifier")
    - Copy the generated 16-character password
-   - Use this password in your configuration or as an environment variable
+   - Use this password as the `ANILIST_NOTIFIER_SMTP_PASSWORD` environment variable
 
 For other SMTP providers:
 - Adjust `smtp_server` and `smtp_port` accordingly
@@ -156,7 +153,6 @@ For other SMTP providers:
 
 2. **"No SMTP password found"**
    - Set `ANILIST_NOTIFIER_SMTP_PASSWORD` environment variable
-   - Or add `password` field to `email` section in config
 
 3. **"AniList GraphQL error"**
    - Verify your AniList username is correct
@@ -190,7 +186,7 @@ anilist-notifier/
 │       ├── anime-notifier.yml
 │       └── reset-state.yml
 ├── anilist_notifier.py
-├── anilist_state.json
+├── anilist_state.json          (auto‑generated)
 ├── reset_state.py
 ├── requirements.txt
 ├── README.md
