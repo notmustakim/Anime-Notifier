@@ -1,10 +1,11 @@
+```yaml
 name: Anime Notifier
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # 7:00 AM Bangladesh time (UTC+6)
+    - cron: "0 1 * * *"
   workflow_dispatch:
-
 
 concurrency:
   group: anime-notifier
@@ -54,10 +55,9 @@ jobs:
                   "username": os.environ["ANILIST_USERNAME"],
                   "token": os.environ["ANILIST_TOKEN"]
               },
-              "check_interval": 3600,
-              "notify_before_release": True,
+              "timezone": "Asia/Dhaka",
               "hours_before_notify": 24,
-              "notify_after_release": True
+              "poll_interval_seconds": 86400
           }
 
           with open("config.json", "w") as f:
@@ -85,3 +85,4 @@ jobs:
 
           git pull --rebase --autostash origin main
           git push origin main
+```
