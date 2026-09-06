@@ -3,7 +3,6 @@ name: Anime Notifier
 
 on:
   schedule:
-    # 7:00 AM Bangladesh time (UTC+6)
     - cron: "0 1 * * *"
   workflow_dispatch:
 
@@ -56,8 +55,7 @@ jobs:
                   "token": os.environ["ANILIST_TOKEN"]
               },
               "timezone": "Asia/Dhaka",
-              "hours_before_notify": 24,
-              "poll_interval_seconds": 86400
+              "hours_before_notify": 24
           }
 
           with open("config.json", "w") as f:
