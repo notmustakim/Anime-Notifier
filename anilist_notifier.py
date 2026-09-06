@@ -1,33 +1,4 @@
-"""
-AniList Episode Notifier
--------------------------
-Watches your AniList "Currently Watching" list and emails you when new
-episodes are about to air or have just been released.
-
-Improvements over the original version:
-  - Real logging (console + rotating file) instead of print()
-  - Robust HTTP session with retries/backoff and timeouts (handles
-    AniList's rate limiting and transient network errors)
-  - GraphQL error responses are detected and reported instead of
-    silently returning an empty list
-  - HTML-escapes all user-supplied text (titles, descriptions) before
-    building the email, preventing broken/garbled emails from special
-    characters
-  - Secrets (SMTP password) can come from an environment variable so
-    they don't have to live in plaintext config.json
-  - Config is validated on startup with clear error messages
-  - State file no longer grows forever - stale entries are pruned
-  - Configurable poll interval (was hardcoded to 1 hour)
-  - --once flag to run a single check (handy for running via cron /
-    systemd timer instead of an infinite loop)
-  - Graceful Ctrl+C / SIGTERM shutdown
-  - Type hints + dataclass for anime entries for clarity
-  - Configurable timezone support
-  - Prefers English titles over Romaji
-  - Simplified email (removed description, genres, rating)
-  - FIXED: Now properly detects and notifies when episodes are released
-"""
-
+```python
 import argparse
 import html
 import json
@@ -37,7 +8,6 @@ import re
 import signal
 import smtplib
 import sys
-import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -54,6 +24,7 @@ from urllib3.util.retry import Retry
 
 ANILIST_API_URL = "https://graphql.anilist.co"
 
+
 WATCHING_QUERY = """
 query ($username: String) {
     MediaListCollection(userName: $username, type: ANIME, status: CURRENT) {
@@ -61,14 +32,19 @@ query ($username: String) {
             entries {
                 media {
                     id
-                    title { romaji english }
+                    title {
+                        romaji
+                        english
+                    }
                     nextAiringEpisode {
                         episode
                         timeUntilAiring
                         airingAt
                     }
                     siteUrl
-                    coverImage { large }
+                    coverImage {
+                        large
+                    }
                     description
                     averageScore
                     genres
@@ -230,17 +206,22 @@ class AniListNotifier:
 
         self.anilist_user = self.config["anilist"]["username"]
 
-        # Load timezone from config (default to UTC)
-        self.timezone = self.config.get("timezone", "UTC")
+        # Bangladesh timezone.
+        self.timezone = self.config.get(
+            "timezone",
+            "Asia/Dhaka"
+        )
 
+        # Only upcoming episodes within this window are notified.
         self.hours_before_notify = self.config.get(
             "hours_before_notify",
             24
         )
 
+        # Kept for compatibility with the existing email template.
         self.poll_interval_seconds = self.config.get(
             "poll_interval_seconds",
-            3600
+            86400
         )
 
     def _build_session(self) -> requests.Session:
@@ -269,7 +250,7 @@ class AniListNotifier:
 
     def _handle_stop(self, signum, frame) -> None:
         self.logger.info(
-            "Received stop signal, shutting down after this cycle..."
+            "Received stop signal, shutting down..."
         )
 
         self._stop = True
@@ -291,7 +272,7 @@ class AniListNotifier:
         return {
             "notified_upcoming": [],
             "notified_released": [],
-            "last_progress": {}  # Track last known progress per anime
+            "last_progress": {}
         }
 
     def _save_state(self) -> None:
@@ -307,15 +288,14 @@ class AniListNotifier:
                     -self.STATE_MAX_AGE_ENTRIES:
                 ]
 
-        # Also limit last_progress to prevent unbounded growth
         if "last_progress" in self.state:
             if len(self.state["last_progress"]) > self.STATE_MAX_AGE_ENTRIES:
-                # Keep only the most recent entries
                 sorted_items = sorted(
                     self.state["last_progress"].items(),
                     key=lambda x: x[1],
                     reverse=True
                 )[:self.STATE_MAX_AGE_ENTRIES]
+
                 self.state["last_progress"] = dict(sorted_items)
 
         tmp_path = self.state_file.with_suffix(".tmp")
@@ -400,7 +380,7 @@ class AniListNotifier:
 
                 if description:
                     description = re.sub(
-                        "<[^<]+?>",
+                        r"<[^<]+?>",
                         "",
                         description
                     )
@@ -414,7 +394,6 @@ class AniListNotifier:
                 watching.append(
                     AnimeEntry(
                         id=media["id"],
-                        # Prefer English title over Romaji
                         title=(
                             media["title"]["english"]
                             or media["title"]["romaji"]
@@ -474,6 +453,7 @@ class AniListNotifier:
             return "Released Now!"
 
         days = seconds // 86400
+
         hours = (
             seconds % 86400
         ) // 3600
@@ -511,36 +491,39 @@ class AniListNotifier:
         notification_type: str = "upcoming"
     ) -> str:
 
-        """Create a clean, simplified email body without extra metadata."""
+        """Create a clean, simplified email body."""
 
-        if notification_type == "release":
-            header_emoji = "🎉"
-            header_title = "New Episodes Released"
-            header_sub = "Ready to watch right now"
-            accent = "#10b981"
-            accent_dark = "#047857"
-            accent_soft = "#ecfdf5"
-            accent_text = "#047857"
-            pill_label = "Available now"
-            cta_label = "Watch now"
-        else:
-            header_emoji = "⏰"
-            header_title = "Upcoming Episodes"
-            header_sub = "Airing soon on your watch list"
-            accent = "#f59e0b"
-            accent_dark = "#b45309"
-            accent_soft = "#fffbeb"
-            accent_text = "#b45309"
-            pill_label = None
-            cta_label = "View on AniList"
+        header_emoji = "⏰"
+        header_title = "Upcoming Episodes"
+        header_sub = "Airing within the next 24 hours"
+
+        accent = "#f59e0b"
+        accent_dark = "#b45309"
+        accent_soft = "#fffbeb"
+        accent_text = "#b45309"
+
+        cta_label = "View on AniList"
 
         episode_cards = ""
 
         for ep in episodes:
-            title = html.escape(str(ep["title"]))
-            url = html.escape(str(ep.get("url", "")), quote=True)
-            cover_img_url = html.escape(str(ep.get("cover", "")), quote=True)
-            time_display = html.escape(pill_label or str(ep["time_until"]))
+            title = html.escape(
+                str(ep["title"])
+            )
+
+            url = html.escape(
+                str(ep.get("url", "")),
+                quote=True
+            )
+
+            cover_img_url = html.escape(
+                str(ep.get("cover", "")),
+                quote=True
+            )
+
+            time_display = html.escape(
+                str(ep["time_until"])
+            )
 
             if cover_img_url:
                 cover_html = (
@@ -616,7 +599,8 @@ class AniListNotifier:
                                     <div style="font-size: 12px;
                                                 color: #9ca3af;
                                                 margin-top: 8px;">
-                                        You're caught up through Episode {ep['progress']}
+                                        You're caught up through
+                                        Episode {ep['progress']}
                                     </div>
 
                                     <div style="margin-top: 12px;">
@@ -641,25 +625,39 @@ class AniListNotifier:
             </table>
             """
 
-        anilist_user_escaped = html.escape(self.anilist_user)
+        anilist_user_escaped = html.escape(
+            self.anilist_user
+        )
+
         plural = "" if len(episodes) == 1 else "s"
 
-        # Get timezone from config
         try:
-            tz = ZoneInfo(self.timezone)
+            tz = ZoneInfo(
+                self.timezone
+            )
         except ZoneInfoNotFoundError:
-            self.logger.warning(f"Timezone '{self.timezone}' not found, falling back to UTC")
+            self.logger.warning(
+                f"Timezone '{self.timezone}' not found, "
+                "falling back to UTC"
+            )
+
             tz = ZoneInfo("UTC")
 
-        checked_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
-        timezone_escaped = html.escape(self.timezone)
+        checked_time = datetime.now(tz).strftime(
+            "%Y-%m-%d %H:%M"
+        )
+
+        timezone_escaped = html.escape(
+            self.timezone
+        )
 
         return f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport"
+                  content="width=device-width, initial-scale=1.0">
             <meta name="color-scheme" content="light">
         </head>
 
@@ -680,6 +678,7 @@ class AniListNotifier:
 
                 <tr>
                     <td>
+
                         <!-- Header -->
                         <table cellpadding="0"
                                cellspacing="0"
@@ -689,14 +688,19 @@ class AniListNotifier:
                                       border-radius: 14px;
                                       padding: 26px 24px;
                                       margin-bottom: 20px;">
+
                             <tr>
                                 <td style="color: #ffffff;">
+
                                     <table cellpadding="0"
                                            cellspacing="0"
                                            border="0"
                                            width="100%">
+
                                         <tr>
+
                                             <td style="vertical-align: middle;">
+
                                                 <div style="font-size: 13px;
                                                             opacity: 0.85;
                                                             font-weight: 600;
@@ -718,10 +722,12 @@ class AniListNotifier:
                                                             margin-top: 3px;">
                                                     {header_sub}
                                                 </div>
+
                                             </td>
 
                                             <td align="right"
                                                 style="vertical-align: middle;">
+
                                                 <div style="background: rgba(255,255,255,0.2);
                                                             color: #ffffff;
                                                             font-size: 20px;
@@ -729,19 +735,27 @@ class AniListNotifier:
                                                             padding: 8px 16px;
                                                             border-radius: 10px;
                                                             text-align: center;">
+
                                                     {len(episodes)}
+
                                                     <div style="font-size: 10px;
                                                                 font-weight: 600;
                                                                 opacity: 0.9;
                                                                 text-transform: uppercase;">
                                                         ep{plural}
                                                     </div>
+
                                                 </div>
+
                                             </td>
+
                                         </tr>
+
                                     </table>
+
                                 </td>
                             </tr>
+
                         </table>
 
                         <!-- Episode Cards -->
@@ -753,10 +767,13 @@ class AniListNotifier:
                                border="0"
                                width="100%"
                                style="padding: 16px 4px 4px 4px;">
+
                             <tr>
+
                                 <td align="center"
                                     style="font-size: 12px;
                                            color: #9ca3af;">
+
                                     <a href="https://anilist.co/user/{anilist_user_escaped}/animelist"
                                        style="color: {accent_dark};
                                               text-decoration: none;
@@ -766,46 +783,40 @@ class AniListNotifier:
 
                                     <span style="margin: 0 6px;">·</span>
 
-                                    Checked {checked_time} ({timezone_escaped})
+                                    Checked {checked_time}
+                                    ({timezone_escaped})
 
-                                    <span style="margin: 0 6px;">·</span>
-
-                                    Next check in ~
-                                    {self.poll_interval_seconds // 60} min
                                 </td>
+
                             </tr>
+
                         </table>
+
                     </td>
                 </tr>
+
             </table>
+
         </body>
         </html>
         """
-
 
     # ---- email ------------------------------------------------------------- #
 
     def send_email(
         self,
-        episodes: list[dict],
-        notification_type: str = "upcoming"
+        episodes: list[dict]
     ) -> bool:
 
         if not episodes:
             return False
 
         try:
-
-            if notification_type == "release":
-                subject = (
-                    f"🎉 {len(episodes)} New Anime Episode"
-                    f"{'s' if len(episodes) > 1 else ''} Released!"
-                )
-            else:
-                subject = (
-                    f"⏰ {len(episodes)} Anime Episode"
-                    f"{'s' if len(episodes) > 1 else ''} Coming Soon"
-                )
+            subject = (
+                f"⏰ {len(episodes)} Anime Episode"
+                f"{'s' if len(episodes) > 1 else ''} "
+                f"Coming Soon"
+            )
 
             msg = MIMEMultipart(
                 "alternative"
@@ -826,17 +837,10 @@ class AniListNotifier:
             ]
 
             for ep in episodes:
-
-                status = (
-                    "Released Now!"
-                    if notification_type == "release"
-                    else f"Airing in: {ep['time_until']}"
-                )
-
                 text_lines += [
                     f"📺 {ep['title']}",
                     f"   Episode {ep['next_episode']}",
-                    f"   Status: {status}",
+                    f"   Airing in: {ep['time_until']}",
                     f"   You've watched: Episode {ep['progress']}",
                     f"   Watch: {ep['url']}",
                     "─" * 40,
@@ -846,7 +850,8 @@ class AniListNotifier:
                 "",
                 "=" * 50,
                 f"Check your full list: "
-                f"https://anilist.co/user/{self.anilist_user}/animelist"
+                f"https://anilist.co/user/"
+                f"{self.anilist_user}/animelist"
             ]
 
             text_body = "\n".join(
@@ -854,8 +859,7 @@ class AniListNotifier:
             )
 
             html_body = self.create_email_html(
-                episodes,
-                notification_type
+                episodes
             )
 
             msg.attach(
@@ -889,148 +893,134 @@ class AniListNotifier:
 
             self.logger.info(
                 f"Email sent successfully "
-                f"({notification_type}, "
-                f"{len(episodes)} episode(s))"
+                f"({len(episodes)} episode(s))"
             )
 
             return True
 
         except smtplib.SMTPException as e:
-
             self.logger.error(
                 f"SMTP error sending email: {e}"
             )
-
             return False
 
         except OSError as e:
-
             self.logger.error(
                 f"Network error sending email: {e}"
             )
-
             return False
-
 
     # ---- main cycle -------------------------------------------------------- #
 
     def check_and_notify(self) -> None:
-
         self.logger.info(
-            "Checking AniList for updates..."
+            "Checking AniList for upcoming episodes..."
         )
 
         watching = self.get_watching_list()
 
         if not watching:
-
             self.logger.warning(
                 "No currently-watching anime with "
                 "upcoming episodes found "
                 "(or the API call failed)."
             )
-
             return
 
         to_notify_upcoming = []
-        to_notify_released = []
 
-        # Initialize last_progress if not exists
         if "last_progress" not in self.state:
             self.state["last_progress"] = {}
 
         for anime in watching:
-            # Track anime ID as string for state
-            anime_id_str = str(anime.id)
-            
-            # Get last known progress for this anime
-            last_progress = self.state["last_progress"].get(anime_id_str, 0)
-            
-            # Check for released episodes by comparing progress
-            if anime.progress > last_progress:
-                # Multiple episodes may have been released since last check
-                for ep in range(last_progress + 1, anime.progress + 1):
-                    notify_key = f"{anime_id_str}_{ep}"
-                    
-                    # Check if we've already notified about this episode
-                    if notify_key not in self.state.get("notified_released", []):
-                        self.logger.info(
-                            f"{anime.title}: Episode {ep} "
-                            f"has been RELEASED! "
-                            f"(Progress: {last_progress} -> {anime.progress})"
-                        )
-                        
-                        # Create payload for this specific episode
-                        payload = self._episode_payload(anime, "Now!")
-                        payload["next_episode"] = ep  # Override with actual episode number
-                        to_notify_released.append(payload)
-                        
-                        self.state.setdefault("notified_released", []).append(notify_key)
-                
-                # Update last progress
-                self.state["last_progress"][anime_id_str] = anime.progress
-            
-            # Check for upcoming episodes
-            if anime.seconds_until is not None and anime.seconds_until > 0:
-                time_str = self.format_time(anime.seconds_until)
-                hours_until = anime.seconds_until / 3600
-                
+
+            anime_id_str = str(
+                anime.id
+            )
+
+            # ---------------------------------------------------------
+            # Track current progress.
+            #
+            # We no longer send release notifications.
+            # ---------------------------------------------------------
+
+            self.state["last_progress"][
+                anime_id_str
+            ] = anime.progress
+
+            # ---------------------------------------------------------
+            # Upcoming episodes ONLY.
+            #
+            # 0 < seconds_until <= 24 hours
+            # ---------------------------------------------------------
+
+            if (
+                anime.seconds_until is not None
+                and 0 < anime.seconds_until <= 24 * 3600
+            ):
+
+                time_str = self.format_time(
+                    anime.seconds_until
+                )
+
                 self.logger.info(
                     f"{anime.title}: "
                     f"Episode {anime.next_episode} "
                     f"in {time_str} "
                     f"(watched up to Ep {anime.progress})"
                 )
-                
-                if hours_until <= self.hours_before_notify:
-                    # Only notify for upcoming episodes that we haven't already
-                    # notified about and that haven't been released yet
-                    notify_key = f"{anime_id_str}_{anime.next_episode}"
-                    
-                    # Check if this episode has already been released/notified
-                    if (notify_key not in self.state.get("notified_upcoming", []) and
-                        notify_key not in self.state.get("notified_released", [])):
-                        
-                        to_notify_upcoming.append(
-                            self._episode_payload(anime, time_str)
+
+                notify_key = (
+                    f"{anime_id_str}_"
+                    f"{anime.next_episode}"
+                )
+
+                if notify_key not in self.state.get(
+                    "notified_upcoming",
+                    []
+                ):
+
+                    to_notify_upcoming.append(
+                        self._episode_payload(
+                            anime,
+                            time_str
                         )
-                        
-                        self.state.setdefault("notified_upcoming", []).append(notify_key)
-            
-            # Handle case where anime has no upcoming episode but progress might have changed
-            elif anime.seconds_until is None:
-                # If no next airing and progress hasn't been tracked, track it now
-                if anime_id_str not in self.state["last_progress"]:
-                    self.state["last_progress"][anime_id_str] = anime.progress
-                    self.logger.info(
-                        f"{anime.title}: No upcoming episodes scheduled. "
-                        f"Tracking progress at Episode {anime.progress}"
                     )
 
+                    self.state.setdefault(
+                        "notified_upcoming",
+                        []
+                    ).append(
+                        notify_key
+                    )
+
+            elif anime.seconds_until is None:
+
+                self.logger.info(
+                    f"{anime.title}: "
+                    f"No upcoming episode scheduled."
+                )
+
+        # Save state before sending the email.
         self._save_state()
 
-        if to_notify_released:
-            self.logger.info(
-                f"Sending release notification for "
-                f"{len(to_notify_released)} episode(s)..."
-            )
-            self.send_email(to_notify_released, "release")
-
         if to_notify_upcoming:
+
             self.logger.info(
                 f"Sending upcoming notification for "
                 f"{len(to_notify_upcoming)} episode(s)..."
             )
-            self.send_email(to_notify_upcoming, "upcoming")
 
-        if (
-            not to_notify_released
-            and not to_notify_upcoming
-        ):
-            self.logger.info(
-                "No new episodes to notify about."
+            self.send_email(
+                to_notify_upcoming
             )
 
+        else:
+
+            self.logger.info(
+                "No upcoming episodes within "
+                "the next 24 hours to notify about."
+            )
 
     @staticmethod
     def _episode_payload(
@@ -1051,36 +1041,34 @@ class AniListNotifier:
             "total_episodes": anime.total_episodes,
         }
 
-
     def run_once(self) -> None:
         self.check_and_notify()
 
-
     def run(self) -> None:
-
         self.logger.info("=" * 60)
         self.logger.info(
             "Anime Episode Notifier starting"
         )
+
         self.logger.info(
             f"User: {self.anilist_user}"
         )
+
         self.logger.info(
             f"From: {self.sender_name} "
             f"<{self.email_sender}>  "
             f"To: {self.email_receiver}"
         )
+
         self.logger.info(
-            f"Notify when within "
-            f"{self.hours_before_notify}h of airing"
+            f"Notify upcoming episodes within "
+            f"{self.hours_before_notify}h"
         )
-        self.logger.info(
-            f"Poll interval: "
-            f"{self.poll_interval_seconds}s"
-        )
+
         self.logger.info(
             f"Timezone: {self.timezone}"
         )
+
         self.logger.info("=" * 60)
 
         while not self._stop:
@@ -1108,6 +1096,8 @@ class AniListNotifier:
                 and not self._stop
             ):
 
+                import time
+
                 time.sleep(
                     min(
                         5,
@@ -1119,6 +1109,10 @@ class AniListNotifier:
 
         self.logger.info("Stopped.")
 
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
 
 def main() -> None:
 
@@ -1141,7 +1135,7 @@ def main() -> None:
     parser.add_argument(
         "--once",
         action="store_true",
-        help="Run a single check and exit (good for cron)"
+        help="Run a single check and exit (good for GitHub Actions)"
     )
 
     args = parser.parse_args()
@@ -1164,9 +1158,11 @@ def main() -> None:
 
     if args.once:
         notifier.run_once()
+
     else:
         notifier.run()
 
 
 if __name__ == "__main__":
     main()
+```
