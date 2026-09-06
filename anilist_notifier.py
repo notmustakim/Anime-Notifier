@@ -1,4 +1,3 @@
-```python
 import argparse
 import html
 import json
@@ -1165,4 +1164,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-```
